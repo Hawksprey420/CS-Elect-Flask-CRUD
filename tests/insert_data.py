@@ -1,64 +1,70 @@
-insert_data.py
 import sys
 import os
+import random
+from faker import Faker
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import MySQLdb
-from config.config import SystemConfig
+from seed.db import connect_db
+from seed import templates
+from seed.generate import (
+    generate_courses,
+    generate_enrollments,
+    generate_instructors,
+    generate_students,
+)
 
 def insert_test_data():
+    rng = random.Random(0)
+    Faker.seed(0)
+    fake = Faker()
+
     try:
-        db = MySQLdb.connect(
-            host=SystemConfig.MYSQL_HOST,
-            user=SystemConfig.MYSQL_USER,
-            passwd=SystemConfig.MYSQL_PASSWORD,
-            db=SystemConfig.MYSQL_DB,
-            port=SystemConfig.MYSQL_PORT
-        )
+        db = connect_db()
         cursor = db.cursor()
+        try:
+            departments = templates.departments()
+            course_titles = templates.course_titles()
 
-        # Insert Departments
-        departments = [
-            (1, 'Computer Science'),
-            (2, 'Engineering'),
-            (3, 'Mathematics'),
-            (4, 'Physics'),
-            (5, 'Biology')
-        ]
-        print("Inserting Departments...")
-        cursor.executemany("INSERT IGNORE INTO department (dept_id, dept_name) VALUES (%s, %s)", departments)
+            print(f"Inserting {len(departments)} Departments...")
+            cursor.executemany(
+                "INSERT IGNORE INTO department (dept_id, dept_name) VALUES (%s, %s)",
+                departments,
+            )
 
-        # Insert Students (20 records)
-        students = [
-            (101, 'Alice Johnson', 1, 3.5, 1),
-            (102, 'Bob Smith', 2, 3.2, 1),
-            (103, 'Charlie Brown', 1, 3.8, 2),
-            (104, 'David Lee', 3, 2.9, 2),
-            (105, 'Eva Garcia', 4, 3.9, 3),
-            (106, 'Frank White', 2, 3.0, 3),
-            (107, 'Grace Miller', 1, 3.6, 4),
-            (108, 'Henry Wilson', 3, 3.1, 4),
-            (109, 'Ivy Thomas', 4, 3.7, 5),
-            (110, 'Jack Taylor', 2, 2.8, 5),
-            (111, 'Kevin Anderson', 1, 3.4, 1),
-            (112, 'Laura Martinez', 3, 3.3, 1),
-            (113, 'Mike Robinson', 2, 3.5, 2),
-            (114, 'Nina Clark', 4, 3.8, 2),
-            (115, 'Oscar Rodriguez', 1, 3.0, 3),
-            (116, 'Paul Lewis', 3, 3.2, 3),
-            (117, 'Quinn Walker', 2, 3.6, 4),
-            (118, 'Rachel Hall', 4, 3.9, 4),
-            (119, 'Sam Allen', 1, 2.7, 5),
-            (120, 'Tina Young', 3, 3.4, 5)
-        ]
-        print("Inserting Students...")
-        cursor.executemany("INSERT IGNORE INTO student (student_id, student_name, year_level, gpa, dept_id) VALUES (%s, %s, %s, %s, %s)", students)
+            instructors = generate_instructors(cursor=cursor, departments=departments, count=15, faker=fake, rng=rng)
+            print(f"Inserting {len(instructors)} Instructors...")
+            cursor.executemany(
+                "INSERT IGNORE INTO instructor (instr_id, instr_name, salary, dept_id) VALUES (%s, %s, %s, %s)",
+                instructors,
+            )
 
-        db.commit()
-        print("Data inserted successfully!")
-        cursor.close()
-        db.close()
+            courses = generate_courses(cursor=cursor, departments=departments, course_titles=course_titles, rng=rng)
+            print(f"Inserting {len(courses)} Courses...")
+            cursor.executemany(
+                "INSERT IGNORE INTO course (course_id, course_code, title, credits, dept_id) VALUES (%s, %s, %s, %s, %s)",
+                courses,
+            )
 
+            students = generate_students(cursor=cursor, departments=departments, count=50, faker=fake, rng=rng)
+            print(f"Inserting {len(students)} Students...")
+            cursor.executemany(
+                "INSERT IGNORE INTO student (student_id, student_name, year_level, gpa, dept_id) VALUES (%s, %s, %s, %s, %s)",
+                students,
+            )
+
+            enrollments = generate_enrollments(cursor=cursor, students=students, courses=courses, count=100, rng=rng)
+            print(f"Inserting {len(enrollments)} Enrollments...")
+            cursor.executemany(
+                "INSERT IGNORE INTO enrollment (enroll_id, student_id, course_id, semester, grade) VALUES (%s, %s, %s, %s, %s)",
+                enrollments,
+            )
+
+            db.commit()
+            print("Data generation and insertion completed successfully!")
+        finally:
+            cursor.close()
+            db.close()
     except Exception as e:
         print(f"Error: {e}")
 
