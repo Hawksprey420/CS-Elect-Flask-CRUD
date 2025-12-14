@@ -11,3 +11,8 @@ class SystemConfig:
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your_jwt_secret_key')
     API_USERNAME = os.environ.get('API_USERNAME', 'admin')
     API_PASSWORD = os.environ.get('API_PASSWORD', 'password')
+    
+    # Additional configurations can be added here
+    
+    # Warning: Do not hardcode sensitive information in production code.
+    # JWT keys must be added by users by themselves for security reasons and before deployment.
