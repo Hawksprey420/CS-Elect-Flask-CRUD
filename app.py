@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, make_response, render_template
+from flask import Flask, request, jsonify, make_response, render_template, redirect
 from flask_mysqldb import MySQL
 import jwt
 import datetime
@@ -18,14 +18,16 @@ app.config.from_object(SystemConfig)
 # Configure Logging
 if not os.path.exists('logs'):
     os.mkdir('logs')
-file_handler = RotatingFileHandler('logs/api.log', maxBytes=10240, backupCount=10)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-))
-file_handler.setLevel(logging.INFO)
-app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
-app.logger.info('Enrollment API startup')
+
+if not app.logger.hasHandlers():
+    file_handler = RotatingFileHandler('logs/api.log', maxBytes=10240, backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('Enrollment API startup')
 
 @app.before_request
 def log_request_info():
@@ -100,8 +102,12 @@ def token_required(f):
             if token.startswith('Bearer '):
                 token = token.split(" ")[1]
             data = jwt.decode(token, app.config['JWT_SECRET_KEY'], algorithms=["HS256"])
-        except:
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token has expired!'}), 401
+        except jwt.InvalidTokenError:
             return jsonify({'message': 'Token is invalid!'}), 401
+        except Exception as e:
+            return jsonify({'message': f'Token error: {str(e)}'}), 401
         return f(*args, **kwargs)
     return decorated
 
@@ -136,7 +142,7 @@ def login():
 
 @app.route('/')
 def index():
-    return jsonify({'message': 'Welcome to the Enrollment System API'})
+    return redirect('/ui')
 
 @app.route('/students', methods=['POST'])
 @token_required
@@ -169,6 +175,8 @@ def create_student():
         finally:
             cur.close()
     except Exception as e:
+        if 'Duplicate entry' in str(e):
+            return format_response({'message': 'Student ID already exists'}, 409)
         return format_response({'message': str(e)}, 500)
 
 @app.route('/students', methods=['GET'])

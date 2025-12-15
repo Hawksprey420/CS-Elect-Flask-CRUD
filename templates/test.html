@@ -1,220 +1,437 @@
 <!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Enrollment API - Test UI</title>
-	</head>
-	<body>
-		<h1>Enrollment API - Test UI</h1>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Enrollment API Suite</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #212529; }
+        .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+        .console-output { 
+            background-color: #1e1e1e; 
+            color: #00ff00; 
+            font-family: 'Consolas', monospace; 
+            padding: 1rem; 
+            border-radius: 0.375rem; 
+            height: 300px; 
+            overflow-y: auto; 
+            font-size: 0.9rem;
+        }
+        .status-badge { font-size: 0.8rem; }
+        .nav-tabs .nav-link { color: #adb5bd; }
+        .nav-tabs .nav-link.active { color: #fff; background-color: #2c3034; border-color: #373b3e #373b3e #2c3034; }
+        .tab-content { background-color: #2c3034; padding: 1.5rem; border: 1px solid #373b3e; border-top: none; border-radius: 0 0 0.375rem 0.375rem; }
+        .btn-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+    </style>
+</head>
+<body>
 
-		<p>
-			This page is served by the running Flask app. If you can see this, your <strong>app.py</strong> is already running.
-		</p>
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#"><i class="fa-solid fa-graduation-cap me-2"></i>Enrollment API Suite</a>
+        <div class="d-flex align-items-center">
+            <span id="authStatus" class="badge bg-danger me-3">Not Authenticated</span>
+            <button id="btnLogout" class="btn btn-sm btn-outline-light d-none">Logout</button>
+        </div>
+    </div>
+</nav>
 
-		<h2>Warnings</h2>
-		<ul>
-			<li><strong>Local only:</strong> Admin buttons below only work from localhost.</li>
-			<li><strong>Danger:</strong> “Insert Data” writes into your MySQL database.</li>
-			<li><strong>Security:</strong> Student endpoints require a valid JWT (Bearer token).</li>
-		</ul>
+<div class="container mt-4">
+    
+    <!-- Login Section -->
+    <div id="loginSection" class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card bg-dark text-light border border-secondary">
+                <div class="card-body p-4">
+                    <h4 class="card-title text-center mb-4">Admin Login</h4>
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="adminUser" class="form-control bg-secondary text-light border-0" value="admin">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" id="adminPass" class="form-control bg-secondary text-light border-0" value="password">
+                    </div>
+                    <button id="btnLogin" class="btn btn-primary w-100">Login & Get Token</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-		<hr />
+    <!-- Main App Section -->
+    <div id="appSection" class="d-none">
+        
+        <!-- Admin Toolbar -->
+        <div class="card bg-dark text-light border border-secondary mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center py-2">
+                <div>
+                    <h6 class="mb-0 text-muted text-uppercase small fw-bold">Admin Controls</h6>
+                </div>
+                <div class="btn-group">
+                    <button id="btnSeed" class="btn btn-sm btn-warning"><i class="fa-solid fa-database me-1"></i> Reset & Seed DB</button>
+                    <button id="btnTests" class="btn btn-sm btn-info"><i class="fa-solid fa-vial me-1"></i> Run Test Suite</button>
+                </div>
+            </div>
+        </div>
 
-		<h2>Admin Tools (Insert Data / Run Tests)</h2>
-		<p>
-			These actions require <strong>Basic Auth</strong> using your configured username/password (see <strong>config/config.py</strong>).
-		</p>
+        <!-- Tabs -->
+        <ul class="nav nav-tabs border-secondary" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="data-tab" data-bs-toggle="tab" data-bs-target="#data-pane" type="button">
+                    <i class="fa-solid fa-table me-2"></i>Data Grid
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-pane" type="button">
+                    <i class="fa-solid fa-keyboard me-2"></i>Manual Operations
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button">
+                    <i class="fa-solid fa-terminal me-2"></i>Console / Logs
+                </button>
+            </li>
+        </ul>
 
-		<label>
-			<input id="confirmDanger" type="checkbox" />
-			I understand these actions can modify the database.
-		</label>
+        <div class="tab-content text-light" id="myTabContent">
+            
+            <!-- Data Grid Pane -->
+            <div class="tab-pane fade show active" id="data-pane">
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Student Records</h5>
+                    <button id="btnRefresh" class="btn btn-sm btn-success"><i class="fa-solid fa-sync me-1"></i> Refresh</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover table-striped border-secondary">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Year</th>
+                                <th>GPA</th>
+                                <th>Dept ID</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody">
+                            <tr><td colspan="6" class="text-center text-muted">No data loaded. Click Refresh.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-		<div>
-			<p>
-				<label>Admin Username: <input id="adminUser" type="text" value="admin" /></label>
-				<label>Admin Password: <input id="adminPass" type="password" value="password" /></label>
-			</p>
+            <!-- Manual Operations Pane -->
+            <div class="tab-pane fade" id="manual-pane">
+                <div class="row g-4">
+                    <!-- Create Form -->
+                    <div class="col-md-6">
+                        <div class="card bg-dark border border-secondary h-100">
+                            <div class="card-header border-secondary">Create Student (POST)</div>
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    <div class="col-4"><input id="newId" type="number" class="form-control form-control-sm bg-secondary text-light" placeholder="ID"></div>
+                                    <div class="col-8"><input id="newName" type="text" class="form-control form-control-sm bg-secondary text-light" placeholder="Name"></div>
+                                    <div class="col-4"><input id="newYear" type="number" class="form-control form-control-sm bg-secondary text-light" placeholder="Year"></div>
+                                    <div class="col-4"><input id="newGpa" type="number" step="0.01" class="form-control form-control-sm bg-secondary text-light" placeholder="GPA"></div>
+                                    <div class="col-4"><input id="newDept" type="number" class="form-control form-control-sm bg-secondary text-light" placeholder="Dept"></div>
+                                </div>
+                                <button id="btnCreate" class="btn btn-primary btn-sm w-100 mt-3">Create Student</button>
+                            </div>
+                        </div>
+                    </div>
 
-			<button id="btnSeed" disabled>Insert / Generate Data (tests/insert_data.py)</button>
-			<button id="btnTests" disabled>Run API Tests (tests/test_api.py)</button>
-		</div>
+                    <!-- Search Form -->
+                    <div class="col-md-6">
+                        <div class="card bg-dark border border-secondary h-100">
+                            <div class="card-header border-secondary">Search (GET)</div>
+                            <div class="card-body">
+                                <div class="input-group mb-3">
+                                    <input id="searchQuery" type="text" class="form-control bg-secondary text-light border-0" placeholder="Name contains...">
+                                    <button id="btnSearch" class="btn btn-info">Search</button>
+                                </div>
+                                <div class="input-group">
+                                    <input id="getId" type="number" class="form-control bg-secondary text-light border-0" placeholder="Student ID">
+                                    <button id="btnGet" class="btn btn-secondary">Get by ID</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-		<pre id="adminOutput"></pre>
+            <!-- Logs Pane -->
+            <div class="tab-pane fade" id="logs-pane">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>System Output</span>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('consoleOutput').textContent=''">Clear</button>
+                </div>
+                <pre id="consoleOutput" class="console-output">System ready.</pre>
+            </div>
+        </div>
+    </div>
+</div>
 
-		<hr />
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Edit Student</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="mb-3">
+                    <label>Name</label>
+                    <input type="text" id="editName" class="form-control bg-secondary text-light">
+                </div>
+                <div class="mb-3">
+                    <label>Year Level</label>
+                    <input type="number" id="editYear" class="form-control bg-secondary text-light">
+                </div>
+                <div class="mb-3">
+                    <label>GPA</label>
+                    <input type="number" step="0.01" id="editGpa" class="form-control bg-secondary text-light">
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="btnSaveEdit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-		<h2>JWT Login</h2>
-		<p>
-			Click “Login” to request a JWT token from <strong>/login</strong>, then use it for CRUD/search calls below.
-		</p>
-		<p>
-			<button id="btnLogin">Login (POST /login)</button>
-			<span id="loginStatus"></span>
-		</p>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // State
+    let jwtToken = localStorage.getItem('jwtToken') || null;
+    let editModal = new bootstrap.Modal(document.getElementById('editModal'));
 
-		<p>
-			<label>JWT Token: <input id="jwtToken" type="text" size="80" placeholder="Bearer token will appear here" /></label>
-		</p>
+    // UI Helpers
+    const log = (msg) => {
+        const el = document.getElementById('consoleOutput');
+        const time = new Date().toLocaleTimeString();
+        el.textContent += `\n[${time}] ${msg}`;
+        el.scrollTop = el.scrollHeight;
+    };
 
-		<hr />
+    const updateAuthUI = () => {
+        const statusBadge = document.getElementById('authStatus');
+        const loginSection = document.getElementById('loginSection');
+        const appSection = document.getElementById('appSection');
+        const btnLogout = document.getElementById('btnLogout');
 
-		<h2>Manual Student Insert (Create)</h2>
-		<p>This uses <strong>POST /students</strong> and requires JWT.</p>
+        if (jwtToken) {
+            statusBadge.className = 'badge bg-success me-3';
+            statusBadge.textContent = 'Authenticated';
+            loginSection.classList.add('d-none');
+            appSection.classList.remove('d-none');
+            btnLogout.classList.remove('d-none');
+            loadGrid();
+        } else {
+            statusBadge.className = 'badge bg-danger me-3';
+            statusBadge.textContent = 'Not Authenticated';
+            loginSection.classList.remove('d-none');
+            appSection.classList.add('d-none');
+            btnLogout.classList.add('d-none');
+        }
+    };
 
-		<p>
-			<label>student_id: <input id="studentId" type="number" value="999" /></label>
-			<label>student_name: <input id="studentName" type="text" value="UI Student" /></label>
-			<label>year_level: <input id="yearLevel" type="number" value="1" /></label>
-			<label>gpa: <input id="gpa" type="number" step="0.01" value="3.50" /></label>
-			<label>dept_id: <input id="deptId" type="number" value="1" /></label>
-			<button id="btnCreateStudent">Create Student</button>
-		</p>
+    // API Helpers
+    const getBasicAuth = () => {
+        const u = document.getElementById('adminUser').value;
+        const p = document.getElementById('adminPass').value;
+        return 'Basic ' + btoa(u + ':' + p);
+    };
 
-		<hr />
+    const apiCall = async (url, method = 'GET', body = null, useBasic = false) => {
+        const headers = { 'Content-Type': 'application/json' };
+        if (useBasic) {
+            headers['Authorization'] = getBasicAuth();
+        } else if (jwtToken) {
+            headers['Authorization'] = `Bearer ${jwtToken}`;
+        }
 
-		<h2>Search Students (Read)</h2>
-		<p>
-			Uses <strong>GET /students?search=</strong> and supports <strong>?format=json|xml</strong>.
-		</p>
-		<p>
-			<label>Search: <input id="searchQuery" type="text" value="" placeholder="name contains..." /></label>
-			<label>
-				Format:
-				<select id="formatSelect">
-					<option value="json" selected>json</option>
-					<option value="xml">xml</option>
-				</select>
-			</label>
-			<button id="btnSearch">Search</button>
-		</p>
+        try {
+            const res = await fetch(url, {
+                method,
+                headers,
+                body: body ? JSON.stringify(body) : null
+            });
+            
+            const text = await res.text();
+            let data;
+            try { data = JSON.parse(text); } catch { data = text; }
 
-		<h2>Get Student by ID (Read)</h2>
-		<p>
-			<label>ID: <input id="getStudentId" type="number" value="999" /></label>
-			<button id="btnGetStudent">Get Student</button>
-		</p>
+            if (!res.ok) {
+                log(`Error (${res.status}): ${typeof data === 'object' ? data.message || JSON.stringify(data) : data}`);
+                if (res.status === 401 && !useBasic) {
+                    log("Token expired or invalid. Logging out...");
+                    logout();
+                }
+                throw new Error(res.statusText);
+            }
+            return data;
+        } catch (e) {
+            log(`Request failed: ${e.message}`);
+            throw e;
+        }
+    };
 
-		<h2>Output</h2>
-		<pre id="output"></pre>
+    // Actions
+    const login = async () => {
+        try {
+            log("Attempting login...");
+            const data = await apiCall('/login', 'POST', null, true);
+            if (data.token) {
+                jwtToken = data.token;
+                localStorage.setItem('jwtToken', jwtToken);
+                log("Login successful.");
+                updateAuthUI();
+            }
+        } catch (e) {
+            log("Login failed.");
+        }
+    };
 
-		<script>
-			function basicAuthHeader(username, password) {
-				const encoded = btoa(`${username}:${password}`);
-				return `Basic ${encoded}`;
-			}
+    const logout = () => {
+        jwtToken = null;
+        localStorage.removeItem('jwtToken');
+        updateAuthUI();
+        log("Logged out.");
+    };
 
-			function bearerAuthHeader(token) {
-				const trimmed = (token || "").trim();
-				return trimmed.startsWith("Bearer ") ? trimmed : `Bearer ${trimmed}`;
-			}
+    const loadGrid = async () => {
+        try {
+            const data = await apiCall('/students');
+            const tbody = document.getElementById('studentsTableBody');
+            tbody.innerHTML = '';
+            
+            if (data.students && data.students.length > 0) {
+                data.students.forEach(s => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${s.student_id}</td>
+                        <td>${s.student_name}</td>
+                        <td>${s.year_level}</td>
+                        <td>${s.gpa}</td>
+                        <td>${s.dept_id}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-info btn-action me-1" onclick="openEdit(${s.student_id}, '${s.student_name}', ${s.year_level}, ${s.gpa})"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteStudent(${s.student_id})"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                log(`Loaded ${data.students.length} students.`);
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No students found.</td></tr>';
+                log("No students found.");
+            }
+        } catch (e) {}
+    };
 
-			function setText(id, text) {
-				document.getElementById(id).textContent = text;
-			}
+    const createStudent = async () => {
+        const payload = {
+            student_id: Number(document.getElementById('newId').value),
+            student_name: document.getElementById('newName').value,
+            year_level: Number(document.getElementById('newYear').value),
+            gpa: Number(document.getElementById('newGpa').value),
+            dept_id: Number(document.getElementById('newDept').value)
+        };
+        try {
+            await apiCall('/students', 'POST', payload);
+            log("Student created.");
+            loadGrid();
+        } catch (e) {}
+    };
 
-			function enableAdminButtons() {
-				const ok = document.getElementById('confirmDanger').checked;
-				document.getElementById('btnSeed').disabled = !ok;
-				document.getElementById('btnTests').disabled = !ok;
-			}
+    const deleteStudent = async (id) => {
+        if(!confirm(`Delete student ${id}?`)) return;
+        try {
+            await apiCall(`/students/${id}`, 'DELETE');
+            log(`Student ${id} deleted.`);
+            loadGrid();
+        } catch (e) {}
+    };
 
-			document.getElementById('confirmDanger').addEventListener('change', enableAdminButtons);
-			enableAdminButtons();
+    // Edit Logic
+    window.openEdit = (id, name, year, gpa) => {
+        document.getElementById('editId').value = id;
+        document.getElementById('editName').value = name;
+        document.getElementById('editYear').value = year;
+        document.getElementById('editGpa').value = gpa;
+        editModal.show();
+    };
 
-			document.getElementById('btnSeed').addEventListener('click', async () => {
-				setText('adminOutput', 'Running insert_data.py...');
-				const u = document.getElementById('adminUser').value;
-				const p = document.getElementById('adminPass').value;
-				const res = await fetch('/admin/seed', {
-					method: 'POST',
-					headers: { 'Authorization': basicAuthHeader(u, p) }
-				});
-				const body = await res.json().catch(() => ({ ok: false, output: 'Non-JSON response' }));
-				setText('adminOutput', `HTTP ${res.status}\nOK: ${body.ok}\nReturn Code: ${body.returncode}\n\n${body.output}`);
-			});
+    document.getElementById('btnSaveEdit').addEventListener('click', async () => {
+        const id = document.getElementById('editId').value;
+        const payload = {
+            student_name: document.getElementById('editName').value,
+            year_level: Number(document.getElementById('editYear').value),
+            gpa: Number(document.getElementById('editGpa').value)
+        };
+        try {
+            await apiCall(`/students/${id}`, 'PUT', payload);
+            log(`Student ${id} updated.`);
+            editModal.hide();
+            loadGrid();
+        } catch (e) {}
+    });
 
-			document.getElementById('btnTests').addEventListener('click', async () => {
-				setText('adminOutput', 'Running test_api.py...');
-				const u = document.getElementById('adminUser').value;
-				const p = document.getElementById('adminPass').value;
-				const res = await fetch('/admin/run-tests', {
-					method: 'POST',
-					headers: { 'Authorization': basicAuthHeader(u, p) }
-				});
-				const body = await res.json().catch(() => ({ ok: false, output: 'Non-JSON response' }));
-				setText('adminOutput', `HTTP ${res.status}\nOK: ${body.ok}\nReturn Code: ${body.returncode}\n\n${body.output}`);
-			});
+    // Admin Actions
+    const runSeed = async () => {
+        log("Running seed script (this may take a moment)...");
+        try {
+            const res = await apiCall('/admin/seed', 'POST', null, true);
+            log(res.output);
+            loadGrid();
+        } catch (e) {}
+    };
 
-			document.getElementById('btnLogin').addEventListener('click', async () => {
-				setText('loginStatus', 'Logging in...');
-				const u = document.getElementById('adminUser').value;
-				const p = document.getElementById('adminPass').value;
-				const res = await fetch('/login', {
-					method: 'POST',
-					headers: { 'Authorization': basicAuthHeader(u, p) }
-				});
+    const runTests = async () => {
+        log("Running test suite...");
+        try {
+            const res = await apiCall('/admin/run-tests', 'POST', null, true);
+            log(res.output);
+            loadGrid(); // Refresh grid to see test artifacts
+        } catch (e) {}
+    };
 
-				if (!res.ok) {
-					setText('loginStatus', `Login failed (HTTP ${res.status})`);
-					return;
-				}
-				const data = await res.json();
-				document.getElementById('jwtToken').value = data.token;
-				setText('loginStatus', 'Login OK: token stored');
-			});
+    // Event Listeners
+    document.getElementById('btnLogin').addEventListener('click', login);
+    document.getElementById('btnLogout').addEventListener('click', logout);
+    document.getElementById('btnRefresh').addEventListener('click', loadGrid);
+    document.getElementById('btnCreate').addEventListener('click', createStudent);
+    document.getElementById('btnSeed').addEventListener('click', runSeed);
+    document.getElementById('btnTests').addEventListener('click', runTests);
+    
+    document.getElementById('btnSearch').addEventListener('click', async () => {
+        const q = document.getElementById('searchQuery').value;
+        try {
+            const data = await apiCall(`/students?search=${q}`);
+            log(`Search found ${data.students ? data.students.length : 0} results.`);
+            // We could update the grid here too, but let's just log for now or reuse loadGrid logic if we refactor
+            // For now, let's just dump to console
+            log(JSON.stringify(data, null, 2));
+        } catch (e) {}
+    });
 
-			document.getElementById('btnCreateStudent').addEventListener('click', async () => {
-				const token = document.getElementById('jwtToken').value;
-				const payload = {
-					student_id: Number(document.getElementById('studentId').value),
-					student_name: document.getElementById('studentName').value,
-					year_level: Number(document.getElementById('yearLevel').value),
-					gpa: Number(document.getElementById('gpa').value),
-					dept_id: Number(document.getElementById('deptId').value)
-				};
+    document.getElementById('btnGet').addEventListener('click', async () => {
+        const id = document.getElementById('getId').value;
+        try {
+            const data = await apiCall(`/students/${id}`);
+            log(JSON.stringify(data, null, 2));
+        } catch (e) {}
+    });
 
-				const res = await fetch('/students', {
-					method: 'POST',
-					headers: {
-						'Authorization': bearerAuthHeader(token),
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify(payload)
-				});
-				const text = await res.text();
-				setText('output', `POST /students\nHTTP ${res.status}\n\n${text}`);
-			});
+    // Init
+    updateAuthUI();
 
-			document.getElementById('btnSearch').addEventListener('click', async () => {
-				const token = document.getElementById('jwtToken').value;
-				const query = encodeURIComponent(document.getElementById('searchQuery').value || '');
-				const fmt = encodeURIComponent(document.getElementById('formatSelect').value);
-				const url = `/students?search=${query}&format=${fmt}`;
-
-				const res = await fetch(url, {
-					method: 'GET',
-					headers: { 'Authorization': bearerAuthHeader(token) }
-				});
-
-				const text = await res.text();
-				setText('output', `GET ${url}\nHTTP ${res.status}\n\n${text}`);
-			});
-
-			document.getElementById('btnGetStudent').addEventListener('click', async () => {
-				const token = document.getElementById('jwtToken').value;
-				const studentId = Number(document.getElementById('getStudentId').value);
-				const fmt = encodeURIComponent(document.getElementById('formatSelect').value);
-				const url = `/students/${studentId}?format=${fmt}`;
-
-				const res = await fetch(url, {
-					method: 'GET',
-					headers: { 'Authorization': bearerAuthHeader(token) }
-				});
-				const text = await res.text();
-				setText('output', `GET ${url}\nHTTP ${res.status}\n\n${text}`);
-			});
-		</script>
-	</body>
+</script>
+</body>
 </html>
